@@ -1,0 +1,50 @@
+name: Accept signed OMP Homebrew candidate
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Exact upstream candidate source
+        required: true
+        type: string
+      candidate_run:
+        description: Successful upstream candidate run ID
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      CANDIDATE_RUN: ${{ inputs.candidate_run }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      HOMEBREW_NO_ANALYTICS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Download and verify exact candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$CANDIDATE_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/Ricardo121380/only-my-pi/actions/runs/$CANDIDATE_RUN" > "$RUNNER_TEMP/run.json"
+          jq -e --arg source "$SOURCE_COMMIT" '.head_sha == $source and .conclusion == "success" and .path == ".github/workflows/distribution-candidate.yml" and .event == "workflow_dispatch"' "$RUNNER_TEMP/run.json"
+          gh run download "$CANDIDATE_RUN" --repo Ricardo121380/only-my-pi --name "native-candidate-$SOURCE_COMMIT" --dir "$RUNNER_TEMP/omp-candidate"
+          for asset in "$RUNNER_TEMP/omp-candidate/native-candidate/"*.tgz "$RUNNER_TEMP/omp-candidate/native-candidate/build-receipt.json" "$RUNNER_TEMP/omp-candidate/native-candidate/only-my-pi.rb"; do
+            gh attestation verify "$asset" --repo Ricardo121380/only-my-pi --source-digest "$SOURCE_COMMIT" --signer-digest "$SOURCE_COMMIT" --source-ref refs/heads/main --signer-workflow Ricardo121380/only-my-pi/.github/workflows/distribution-candidate.yml --deny-self-hosted-runners
+          done
+      - name: Install, test, upgrade, uninstall and reinstall
+        run: bash scripts/accept-candidate.sh
+      - name: Keep lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: homebrew-acceptance-${{ inputs.source_commit }}
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/omp-brew-evidence
