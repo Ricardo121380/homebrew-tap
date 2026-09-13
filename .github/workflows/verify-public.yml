@@ -1,0 +1,49 @@
+name: Verify public OMP installation
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published version
+        required: true
+        type: string
+      source_commit:
+        description: Accepted source commit
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  public-install:
+    runs-on: macos-14
+    timeout-minutes: 25
+    env:
+      VERSION: ${{ inputs.version }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      HOMEBREW_NO_ANALYTICS: '1'
+    steps:
+      - name: Install the public tap default and verify identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" == 0.4.0-preview.1 ]]
+          [[ "$SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          mkdir "$RUNNER_TEMP/public-brew-evidence"
+          brew tap ricardo121380/tap
+          if brew help trust >/dev/null 2>&1; then brew trust --formula ricardo121380/tap/only-my-pi; fi
+          brew install ricardo121380/tap/only-my-pi
+          omp admin version --json > "$RUNNER_TEMP/public-brew-evidence/version.json"
+          omp admin doctor --json > "$RUNNER_TEMP/public-brew-evidence/doctor.json"
+          jq -e --arg v "$VERSION" --arg s "$SOURCE_COMMIT" '.ok == true and .packageVersion == $v and .sourceCommit == $s and .installation.channel == "homebrew"' "$RUNNER_TEMP/public-brew-evidence/version.json"
+          jq -e '.ok == true' "$RUNNER_TEMP/public-brew-evidence/doctor.json"
+          brew test ricardo121380/tap/only-my-pi
+          jq --arg s "$SOURCE_COMMIT" --arg v "$VERSION" '{status:"PUBLIC_HOMEBREW_ACCEPTANCE_PASS",version:$v,sourceCommit:$s,distributionId:.distributionId,publicTap:true,defaultEntry:true,formulaTest:true}' "$RUNNER_TEMP/public-brew-evidence/version.json" > "$RUNNER_TEMP/public-brew-evidence/acceptance.json"
+          brew uninstall ricardo121380/tap/only-my-pi
+      - name: Retain public installation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-homebrew-${{ inputs.version }}
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/public-brew-evidence
