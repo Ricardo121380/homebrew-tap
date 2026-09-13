@@ -1,9 +1,13 @@
 # OMP Homebrew tap
 
-This tap is being prepared. No installable OMP formula has been published yet.
+Public Preview for macOS 14+ Apple Silicon.
 
-本 tap 正在准备中，目前尚未发布可安装的 OMP Formula。
+```sh
+brew install ricardo121380/tap/only-my-pi
+omp
+```
 
-[Project / 项目](https://github.com/Ricardo121380/only-my-pi)
+[English documentation](https://github.com/Ricardo121380/only-my-pi#readme)
+· [中文说明](https://github.com/Ricardo121380/only-my-pi/blob/main/README.zh-CN.md)
 
-Formula updates will consume source-verified, signed upstream release artifacts through this repository's own workflow.
+Formula updates consume the signed upstream release artifacts. The tap does not rebuild OMP.
