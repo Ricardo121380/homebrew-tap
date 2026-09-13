@@ -36,7 +36,12 @@ jobs:
       - name: Validate the published release and its source
         run: |
           set -eu
-          case "$VERSION" in (0.4.0-preview.1|0.4.0-preview.2) ;; (*) exit 1;; esac
+          test "$GITHUB_REF" = refs/heads/main
+          case "$VERSION" in
+            0.4.0-preview.1) workflow=distribution-candidate.yml ;;
+            0.4.0-preview.2) workflow=linux-candidate.yml ;;
+            *) exit 1 ;;
+          esac
           case "$SOURCE_COMMIT" in (''|*[!a-f0-9]*) exit 1;; esac
           test "${#SOURCE_COMMIT}" -eq 40
           gh release view "v$VERSION" --repo "$UPSTREAM_REPO" --json isDraft,isPrerelease,targetCommitish > "$RUNNER_TEMP/release.json"
@@ -44,9 +49,15 @@ jobs:
           mkdir "$RUNNER_TEMP/formula"
           gh release download "v$VERSION" --repo "$UPSTREAM_REPO" --pattern only-my-pi.rb --pattern build-receipt.json --dir "$RUNNER_TEMP/formula"
           for asset in "$RUNNER_TEMP/formula/only-my-pi.rb" "$RUNNER_TEMP/formula/build-receipt.json"; do
-            gh attestation verify "$asset" --repo "$UPSTREAM_REPO" --source-digest "$SOURCE_COMMIT" --signer-digest "$SOURCE_COMMIT" --source-ref refs/heads/main --signer-workflow "$UPSTREAM_REPO/.github/workflows/distribution-candidate.yml" --deny-self-hosted-runners
+            gh attestation verify "$asset" --repo "$UPSTREAM_REPO" --source-digest "$SOURCE_COMMIT" --signer-digest "$SOURCE_COMMIT" --source-ref refs/heads/main --signer-workflow "$UPSTREAM_REPO/.github/workflows/$workflow" --deny-self-hosted-runners
           done
           jq -e --arg source "$SOURCE_COMMIT" --arg version "$VERSION" '.sourceCommit == $source and .version == $version' "$RUNNER_TEMP/formula/build-receipt.json"
+          if [ "$VERSION" = 0.4.0-preview.2 ]; then
+            jq -e '.status == "MULTIPLATFORM_CANDIDATE_NOT_PUBLISHED" and .homebrew.filename == "only-my-pi.rb" and (.platforms["darwin-arm64"].distributionId | test("^sha256:[a-f0-9]{64}$"))' "$RUNNER_TEMP/formula/build-receipt.json"
+            expected=$(jq -r '.homebrew.sha256' "$RUNNER_TEMP/formula/build-receipt.json")
+            actual="sha256:$(sha256sum "$RUNNER_TEMP/formula/only-my-pi.rb" | cut -d ' ' -f 1)"
+            test "$expected" = "$actual"
+          fi
 
       - name: Update the formula in this tap only
         run: |
