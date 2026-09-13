@@ -1,10 +1,10 @@
-# Generated from 38e71adc8c2c52cc332db288f5dcdd14f73bd8cb; core identity sha256:a7af13f85bafadd22f591f88071078ffba8268c2ddee786f35bc000b10a4b75a
+# Generated from e63e1a3b870fb548ce4c2c08ed25d5b767b7e21b; core identity sha256:14ac2484055e3eb092103e74754666d6f19490dd2d1da577861ba4e301f30600
 class OnlyMyPi < Formula
   desc "Guarded terminal coding agent built on Pi (Public Preview)"
   homepage "https://github.com/Ricardo121380/only-my-pi"
-  url "https://github.com/Ricardo121380/only-my-pi/releases/download/v0.4.0-preview.1/only-my-pi-0.4.0-preview.1.tgz"
-  version "0.4.0-preview.1"
-  sha256 "d2db715b33e0120cf21c66fdd882cfb44a7bc0c3573d77c2ec7ab0f792e3cd37"
+  url "https://github.com/Ricardo121380/only-my-pi/releases/download/v0.4.0-preview.2/only-my-pi-0.4.0-preview.2.tgz"
+  version "0.4.0-preview.2"
+  sha256 "4d210c70dad327c87de488e8fa7bd1fc566849a4f1aa1b151080789798b7e0bb"
   license "MIT"
 
   depends_on arch: :arm64
@@ -14,8 +14,8 @@ class OnlyMyPi < Formula
   skip_clean :all
 
   resource "only-my-pi-runtime-darwin-arm64" do
-    url "https://github.com/Ricardo121380/only-my-pi/releases/download/v0.4.0-preview.1/only-my-pi-runtime-darwin-arm64-0.4.0-preview.1.tgz"
-    sha256 "2a8a22df9550ce5949af97c16df0c5f8e66babe30713efb979f6265ef4d143a2"
+    url "https://github.com/Ricardo121380/only-my-pi/releases/download/v0.4.0-preview.2/only-my-pi-runtime-darwin-arm64-0.4.0-preview.2.tgz"
+    sha256 "c239dc21695179b092b8d56afe317734912bb79234eec1c27186776eb39a4804"
   end
 
   def install
@@ -39,7 +39,7 @@ class OnlyMyPi < Formula
       runtime.mkpath
       system "/usr/bin/tar", "-xzf", libexec/"runtime.tgz", "-C", runtime, "--strip-components", "1"
       File.write(runtime/"distribution-installation.json", <<~JSON)
-        {"formatVersion":1,"channel":"homebrew","version":"0.4.0-preview.1"}
+        {"formatVersion":1,"channel":"homebrew","version":"0.4.0-preview.2"}
       JSON
     end
     system Formula["node@24"].opt_bin/"node", libexec/"lib/node_modules/only-my-pi/loader.mjs", "--verify-install"
@@ -47,14 +47,14 @@ class OnlyMyPi < Formula
 
   def caveats
     <<~EOS
-      This is OMP 0.4.0-preview.1, a Public Preview.
+      This is OMP 0.4.0-preview.2, a Public Preview.
       Run omp; use omp admin pi for model authentication.
       Existing Pi configuration and sessions are preserved on uninstall.
     EOS
   end
 
   test do
-    assert_match "only-my-pi 0.4.0-preview.1", shell_output("#{bin}/omp --version")
+    assert_match "only-my-pi 0.4.0-preview.2", shell_output("#{bin}/omp --version")
     assert_match '"channel": "homebrew"', shell_output("#{bin}/omp admin version --json")
     assert_match '"ok": true', shell_output("#{bin}/omp admin doctor --json")
     assert_match "0.84.3", shell_output("#{bin}/omp admin pi --version")
